@@ -3,6 +3,7 @@
 *.sdf
 *.suo
 *.user
+*.opensdf
 joystick.vcxproj.user
 Release
 Debug
