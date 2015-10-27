@@ -1,3 +1,13 @@
+
+--------------------------------------------------------------------
+This application has been modified to research Sensory Motor 
+Arousal Regulation Treatment (SMART) at the Trauma Center at the 
+Justice Resource Institute.
+-------------------------------------------------------------------
+
+
+Original Application developed by Giles Malet:
+
 This program monitors an attached joystick, and displays various
 parameters, as well as logging to a file.
 

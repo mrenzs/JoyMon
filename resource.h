@@ -2,6 +2,7 @@
 // Microsoft Visual C++ generated include file.
 // Used by Joystick.rc
 //
+#define IDC_STATIC						-1
 #define IDI_MAIN                        102
 #define IDD_JOYST_IMM                   103
 #define IDR_ACCELERATOR1                103
