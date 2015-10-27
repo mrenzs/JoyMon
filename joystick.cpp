@@ -84,6 +84,7 @@ char g_MsgText[512];
 static bool g_JoystickButton = false, g_Button2 = false;
 
 static const char g_Version[] = "Version: " __DATE__ ", "  __TIME__;
+static const char Title[] = "Joystick Monitor";
 
 static struct {
 	bool ShowAxes, ShowFilename, OutputFileBanner, OriginLowerLeft, DrawOctants, RememberWindow, SoundFeedback, SuppressX, SuppressY;
@@ -99,14 +100,34 @@ static struct {
 // Desc: Entry point for the application.  Since we use a simple dialog for 
 //       user interaction we don't need to pump messages.
 //-----------------------------------------------------------------------------
-int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, int )
+int APIENTRY WinMain( HINSTANCE hInst, HINSTANCE, LPSTR, int nCmdShow)
 {
     InitCommonControls();
 
     // Display the main dialog box.
 	g_hInst = hInst; // needed to create config dialog.
+	
+#if 1
 	DialogBox( hInst, MAKEINTRESOURCE(IDD_JOYST_IMM), NULL, MainDlgProc );
-    
+#else    
+	HWND hDlg;
+	MSG msg;
+	BOOL ret;
+
+	hDlg = CreateDialogParam(hInst, MAKEINTRESOURCE(IDD_JOYST_IMM), 0, MainDlgProc, 0);
+	ShowWindow(hDlg, nCmdShow);
+
+	while((ret = GetMessage(&msg, 0, 0, 0)) != 0) {
+		if(ret == -1)
+			return -1;
+
+		if(!IsDialogMessage(hDlg, &msg)) {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+#endif
+
     return TRUE;
 }
 
@@ -931,16 +952,14 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
 
 			if ( !LoadConfig() ) {
 				MessageBox( NULL, TEXT("Problems reading the config from the registry. ") \
-                    TEXT("Restored config may be incomplete."), TEXT("Joystick Monitor"), 
-					MB_ICONERROR | MB_OK );
+                    TEXT("Restored config may be incomplete."), Title, MB_ICONERROR | MB_OK );
 			} else {
 				_snprintf( g_MsgText, sizeof g_MsgText, "Click button %u to start", g_Config.JoystickButton );
 			}
 
 			if( FAILED( InitDirectInput( hDlg ) ) )
             {
-                MessageBox( NULL, TEXT("Error Initializing DirectInput"), 
-                            TEXT("Joystick Monitor"), MB_ICONERROR | MB_OK );
+                MessageBox( NULL, TEXT("Error Initializing DirectInput"), Title, MB_ICONERROR | MB_OK );
                 EndDialog( hDlg, 0 );
 				break;
 			}
@@ -950,9 +969,9 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
 				!g_pJoystick || g_pJoystick->Acquire() != S_OK )
 			{ 
 				MessageBeep(MB_ICONEXCLAMATION); 
-				MessageBox(hDlg, "Couldn't initialize the joystick.", NULL, MB_OK | MB_ICONEXCLAMATION);
-////				// Just continue....they have been warned, but can at least see the screen.
-// 				PostMessage(hDlg,WM_CLOSE,0,0L); 
+				MessageBox(hDlg, "Couldn't initialize the joystick.", Title, MB_OK | MB_ICONEXCLAMATION);
+				// Just continue....they have been warned, but can at least see the screen.
+ 				//PostMessage(hDlg,WM_CLOSE,0,0L); 
 		    } 
 
 			if ( g_Config.RememberWindow &&
@@ -980,7 +999,7 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
             if( FAILED( UpdateInputState( hDlg ) ) )
             {
                 MessageBox( NULL, TEXT("Error Reading Input State. ") \
-                            TEXT("The monitor will now exit."), TEXT("Joystick Monitor"), 
+                            TEXT("The monitor will now exit."), Title, 
                             MB_ICONERROR | MB_OK );
                 EndDialog( hDlg, TRUE ); 
             }
@@ -989,7 +1008,7 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
 			if ( g_bWriting && g_bWriteError )
 			{
                 MessageBox( NULL, TEXT("Error Writing Output File. ") \
-                            TEXT("The monitor will now exit."), TEXT("Joystick Monitor"), 
+                            TEXT("The monitor will now exit."), Title, 
                             MB_ICONERROR | MB_OK );
                 EndDialog( hDlg, TRUE ); 
             }
@@ -1005,7 +1024,7 @@ INT_PTR CALLBACK MainDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam 
 					break;
 
 				case ID_EDIT_CONFIG:
-					CreateDialog( g_hInst, MAKEINTRESOURCE(IDD_CONFIG), hDlg, ConfigDlgProc );
+					DialogBox( g_hInst, MAKEINTRESOURCE(IDD_CONFIG), hDlg, ConfigDlgProc );
 					break;
 
 				default:
@@ -1107,7 +1126,7 @@ void CheckJoystickButton( HWND hDlg )
 					strcat(errbuf, "000': ");
 					size_t errstartlen = strlen(errbuf);
 					strerror_s(&errbuf[errstartlen], sizeof errbuf - errstartlen, errno);
-					MessageBox( NULL, errbuf, TEXT("Joystick Monitor"), MB_ICONERROR | MB_OK );
+					MessageBox( NULL, errbuf, Title, MB_ICONERROR | MB_OK );
 //					EndDialog( hDlg, TRUE ); 
 
 				} else {
@@ -1293,7 +1312,7 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
             switch( LOWORD(wParam) )
             {
                 case IDC_CONFIG_ABOUT:
-					CreateDialog( g_hInst, MAKEINTRESOURCE(IDD_ABOUT), hDlg, ConfigAboutProc );
+					DialogBox( g_hInst, MAKEINTRESOURCE(IDD_ABOUT), hDlg, ConfigAboutProc );
 					break;
 
 				case IDC_CONFIG_CANCEL:
@@ -1327,19 +1346,24 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 							g_Config.SuppressY = true; else g_Config.SuppressY = false;
 
 						if (g_Config.DrawOctants && g_Config.OriginLowerLeft ) {
-								MessageBox(hDlg, "Cannot draw octants with the origin in the lower left.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Cannot draw octants with the origin in the lower left.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 
 						if (g_Config.OriginLowerLeft && (g_Config.SuppressX || g_Config.SuppressY)) {
-								MessageBox(hDlg, "Cannot suppress axes with the origin in the lower left.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Cannot suppress axes with the origin in the lower left.", Title, MB_OK | MB_ICONEXCLAMATION);
+								break;
+						}
+
+						if (g_Config.DrawOctants && (g_Config.SuppressX || g_Config.SuppressY)) {
+								MessageBox(hDlg, "Cannot suppress axes when drawing octants.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 
 						GetWindowText( GetDlgItem( hDlg, IDC_SAMPLES_PER_SEC ), buf, sizeof buf );
 						errno = 0;
 						if ( atof(buf) <= 0 || errno != 0 ) {
-								MessageBox(hDlg, "Ticks per second must be a floating point number greater than zero.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Ticks per second must be a floating point number greater than zero.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 
@@ -1349,7 +1373,7 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 							millisecs = 1000 / USER_TIMER_MINIMUM;
 							char text[128];
 							_snprintf(text, sizeof text, "Warning: Your clock cannot exceed %lu ticks per second.", millisecs);
-							MessageBox(hDlg, text, "Warning", MB_OK | MB_ICONWARNING);
+							MessageBox(hDlg, text, Title, MB_OK | MB_ICONWARNING);
 							g_Config.TicksPerSec = 1000.0 / USER_TIMER_MINIMUM;
 						}
 
@@ -1363,7 +1387,7 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 						if ( atoi(buf) < 1 || (unsigned)atoi(buf) > dc.dwButtons ) {
 							char text[128];
 							_snprintf(text, sizeof text, "Joystick button to start & stop writing must be between 1 and %lu inclusive", dc.dwButtons );
-							MessageBox(hDlg, text, NULL, MB_OK | MB_ICONEXCLAMATION);
+							MessageBox(hDlg, text, Title, MB_OK | MB_ICONEXCLAMATION);
 							break;
 						}
 						g_Config.JoystickButton = atoi(buf);
@@ -1374,19 +1398,19 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 						if ( atoi(buf) < 0 || (unsigned)atoi(buf) > dc.dwButtons ) {
 							char text[128];
 							_snprintf(text, sizeof text, "Joystick button to monitor must be between 1 and %lu inclusive", dc.dwButtons );
-							MessageBox(hDlg, text, NULL, MB_OK | MB_ICONEXCLAMATION);
+							MessageBox(hDlg, text, Title, MB_OK | MB_ICONEXCLAMATION);
 							break;
 						}
 						g_Config.Button2 = atoi(buf);
 
 						if ( g_Config.JoystickButton == g_Config.Button2 ) {
-							MessageBox(hDlg, "The button to start & stop writing cannot be the same as the button to monitor", NULL, MB_OK | MB_ICONEXCLAMATION);
+							MessageBox(hDlg, "The button to start & stop writing cannot be the same as the button to monitor", Title, MB_OK | MB_ICONEXCLAMATION);
 							break;
 						}
 
 						GetWindowText( GetDlgItem( hDlg, IDC_XYMINMAX ), buf, sizeof buf);
 						if ( atoi(buf) <= 0 ) {
-								MessageBox(hDlg, "Axis maximum value must be greater than zero.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Axis maximum value must be greater than zero.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 						if ( atoi(buf) != g_Config.XYMinMax ) {
@@ -1398,21 +1422,21 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 
 						GetWindowText( GetDlgItem( hDlg, IDC_GRID_COUNT ), buf, sizeof buf );
 						if ( atoi(buf) < 0 ) {
-								MessageBox(hDlg, "Grid count must be greater than or equal to zero.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Grid count must be greater than or equal to zero.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 						g_Config.GridCount = atoi(buf);
 
 						GetWindowText( GetDlgItem( hDlg, IDC_TICK_COUNT ), buf, sizeof buf );
 						if ( atoi(buf) < 0 ) {
-								MessageBox(hDlg, "Tick count must be greater than or equal to zero.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Tick count must be greater than or equal to zero.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 						g_Config.TickCount = atoi(buf);
 
 						GetWindowText( GetDlgItem( hDlg, IDC_POINTER_SIZE ), buf, sizeof buf );
 						if ( atoi(buf) <= 0 || atoi(buf) > 50 ) {
-								MessageBox(hDlg, "Pointer size (the radius) must be between 1 and 50 inclusive.", NULL, MB_OK | MB_ICONEXCLAMATION);
+								MessageBox(hDlg, "Pointer size (the radius) must be between 1 and 50 inclusive.", Title, MB_OK | MB_ICONEXCLAMATION);
 								break;
 						}
 						g_Config.EllipseSize = atoi(buf);
@@ -1439,8 +1463,7 @@ INT_PTR CALLBACK ConfigDlgProc( HWND hDlg, UINT msg, WPARAM wParam, LPARAM lPara
 
 						if ( !SaveConfig() ) {
 							MessageBox( NULL, TEXT("Problems writing config to the registry. (You may need to run this program with Administrator rights.) ") \
-			                    TEXT("Saved config may be incomplete."), TEXT("Joystick Monitor"), 
-				                MB_ICONERROR | MB_OK );
+			                    TEXT("Saved config may be incomplete."), Title, MB_ICONERROR | MB_OK );
 						}
 
 						// TODO - if config changes something on screen, it's not redrawing properly
@@ -1633,8 +1656,7 @@ HRESULT InitDirectInput( HWND hDlg )
     if( NULL == g_pJoystick )
     {
         MessageBox( NULL, TEXT("Joystick not found.\nThings will go downhill from here...."),  
-                    TEXT("Joystick Monitor"), 
-                    MB_ICONERROR | MB_OK );
+                    Title, MB_ICONERROR | MB_OK );
         return S_OK;
     }
 
@@ -1800,12 +1822,6 @@ HRESULT UpdateInputState( HWND hDlg )
 
 	static const float deg2rad = 0.0174532925f;
 
-	int Border;			// leave some space around the edges
-	if (g_Config.OriginLowerLeft)
-		Border = 25;	// need more room for labels
-	else
-		Border = 4;
-
 	// Get the input's device state
     if( PollJoystick( js ) != S_OK )
 		memset( &js, 0, sizeof js);	// it may be unplugged.
@@ -1829,6 +1845,18 @@ HRESULT UpdateInputState( HWND hDlg )
 	hDC = GetDC( hXhair );
     if( NULL == hDC ) 
         return -1;
+
+	int BorderX, BorderY;	// leave some space around the edges
+	if (g_Config.OriginLowerLeft) {
+		BorderX = BorderY = 25;			// need more room for labels
+	} else {
+		TEXTMETRIC tm;
+		if (GetTextMetrics(hDC, &tm) == 0)
+			tm.tmHeight = 13;			// wild guess
+		BorderY = tm.tmHeight;			// Just enough room to write labels outside the border.
+		BorderX = tm.tmHeight;			// X border is the same size as the Y border.
+		//BorderX = 4;					// Fixed width narrow border.
+	}
 
 	// Use system font for all output text.
 	SelectObject(hDC, GetStockObject(DEFAULT_GUI_FONT)) ;
@@ -1866,7 +1894,7 @@ HRESULT UpdateInputState( HWND hDlg )
 	if ( g_Config.LabelNegX[0] != 0 ) {
 		if (!g_Config.OriginLowerLeft) {
 			SetTextAlign( hDC, TA_TOP | TA_LEFT );
-			TextOut( hDC, Border+2,y+2, g_Config.LabelNegX, strlen(g_Config.LabelNegX) );
+			TextOut( hDC, BorderX+2,y+2, g_Config.LabelNegX, strlen(g_Config.LabelNegX) );
 
 		} else {	// Draw the label vertically, outside the axis, rotated 90 degrees
 			HFONT NegYfont = CreateFont(
@@ -1878,7 +1906,7 @@ HRESULT UpdateInputState( HWND hDlg )
 			   FALSE,                     // bItalic
 			   FALSE,                     // bUnderline
 			   0,                         // cStrikeOut
-			   ANSI_CHARSET,              // nCharSet
+			   DEFAULT_CHARSET,           // nCharSet
 			   OUT_DEFAULT_PRECIS,        // nOutPrecision
 			   CLIP_DEFAULT_PRECIS,       // nClipPrecision
 			   DEFAULT_QUALITY,           // nQuality
@@ -1891,7 +1919,7 @@ HRESULT UpdateInputState( HWND hDlg )
 				if (GetTextMetrics(hDC, &tm) == 0)
 					tm.tmHeight = 13;	// wild guess
 				SetTextAlign( hDC, TA_BOTTOM | TA_CENTER );
-				TextOut(hDC, Border / 2 + tm.tmHeight/2, y, g_Config.LabelNegX, strlen(g_Config.LabelNegX));
+				TextOut(hDC, BorderY / 2 + tm.tmHeight/2, y, g_Config.LabelNegX, strlen(g_Config.LabelNegX));
 
 				// Done with the font.  Delete the font object.
 				if (oldfont != NULL) SelectObject(hDC, oldfont);
@@ -1903,7 +1931,7 @@ HRESULT UpdateInputState( HWND hDlg )
 				TEXTMETRIC tm;
 				if (GetTextMetrics(hDC, &tm) == 0)
 					tm.tmHeight = 13;	// wild guess
-				int xpos = Border / 2;
+				int xpos = BorderX / 2;
 				int ypos = y - (strlen(g_Config.LabelNegX) * tm.tmHeight) /2;
 				SetTextAlign( hDC, TA_TOP | TA_CENTER );
 				for (unsigned int i=0; i < strlen(g_Config.LabelNegX); i++)
@@ -1913,15 +1941,12 @@ HRESULT UpdateInputState( HWND hDlg )
 	}
 	if ( g_Config.LabelPosX[0] != 0 ) {
 		SetTextAlign( hDC, TA_TOP | TA_RIGHT );
-		TextOut( hDC, xsize - Border - 2,y+2, g_Config.LabelPosX, strlen(g_Config.LabelPosX) );
+		TextOut( hDC, xsize - BorderX - 2,y+2, g_Config.LabelPosX, strlen(g_Config.LabelPosX) );
 	}
 	if ( g_Config.LabelNegY[0] != 0 ) {	// axis is flipped
-		int align = TA_LEFT;			// avoid overwriting an axis
-		if (g_Config.DrawOctants || g_Config.SuppressY)
-			align = TA_LEFT;
-		SetTextAlign( hDC, TA_BOTTOM | align );
+		SetTextAlign( hDC, TA_BOTTOM | TA_CENTER );
 		if (!g_Config.OriginLowerLeft) {	// label goes inside the axis, else below
-			TextOut( hDC, x+2, ysize - Border - 2, g_Config.LabelNegY, strlen(g_Config.LabelNegY) );
+			TextOut( hDC, x+2, ysize - 2, g_Config.LabelNegY, strlen(g_Config.LabelNegY) );
 		} else {
 			// Force the same font we used for the negative Y axis, else they're different...
 			HFONT NegYfont = CreateFont(
@@ -1933,7 +1958,7 @@ HRESULT UpdateInputState( HWND hDlg )
 			   FALSE,                     // bItalic
 			   FALSE,                     // bUnderline
 			   0,                         // cStrikeOut
-			   ANSI_CHARSET,              // nCharSet
+			   DEFAULT_CHARSET,           // nCharSet
 			   OUT_DEFAULT_PRECIS,        // nOutPrecision
 			   CLIP_DEFAULT_PRECIS,       // nClipPrecision
 			   DEFAULT_QUALITY,           // nQuality
@@ -1947,7 +1972,7 @@ HRESULT UpdateInputState( HWND hDlg )
 			if (GetTextMetrics(hDC, &tm) == 0)
 				tm.tmHeight = 13;	// wild guess
 			SetTextAlign( hDC, TA_BOTTOM | TA_CENTER );
-			TextOut(hDC, x, ysize - (Border-tm.tmHeight)/2, g_Config.LabelNegY, strlen(g_Config.LabelNegY));
+			TextOut(hDC, x, ysize - (BorderY-tm.tmHeight)/2, g_Config.LabelNegY, strlen(g_Config.LabelNegY));
 
 			// Done with the font.  Delete the font object.
 			if (oldfont != NULL) SelectObject(hDC, oldfont);
@@ -1955,11 +1980,8 @@ HRESULT UpdateInputState( HWND hDlg )
 		}
 	}
 	if ( g_Config.LabelPosY[0] != 0 ) {
-		int align = TA_CENTER;
-		if (!g_Config.DrawOctants && !g_Config.SuppressY && !g_Config.OriginLowerLeft)
-			align = TA_RIGHT;
-		SetTextAlign( hDC, TA_TOP | align );
-		TextOut( hDC, x-2,Border + 2, g_Config.LabelPosY, strlen(g_Config.LabelPosY) );
+		SetTextAlign( hDC, TA_TOP | TA_CENTER );
+		TextOut( hDC, x-2, 2, g_Config.LabelPosY, strlen(g_Config.LabelPosY) );
 	}
 
 	// Need to measure string output sizes to avoid truncation at the edge of the screen
@@ -1967,7 +1989,7 @@ HRESULT UpdateInputState( HWND hDlg )
 	if ( g_Config.LabelTopLeft[0] != 0 ) {
 		RECT r = { 0, 0, 0, 0 };
 		DrawText(hDC, g_Config.LabelTopLeft, strlen(g_Config.LabelTopLeft), &r, DT_CALCRECT);
-		int offset = r.right - x/2 + Border;
+		int offset = r.right - x/2 + BorderX;
 		if (offset<0) offset = 0;
 		SetTextAlign( hDC, TA_BOTTOM | TA_RIGHT );
 		TextOut( hDC, x/2 + offset,y/2, g_Config.LabelTopLeft, strlen(g_Config.LabelTopLeft) );
@@ -1975,7 +1997,7 @@ HRESULT UpdateInputState( HWND hDlg )
 	if ( g_Config.LabelTopRight[0] != 0 ) {
 		RECT r = { 0, 0, 0, 0 };
 		DrawText(hDC, g_Config.LabelTopRight, strlen(g_Config.LabelTopRight), &r, DT_CALCRECT);
-		int offset = r.right - x/2 + Border;
+		int offset = r.right - x/2 + BorderX;
 		if (offset<0) offset = 0;
 		SetTextAlign( hDC, TA_BOTTOM | TA_LEFT );
 		TextOut( hDC, x+x-x/2 - offset,y/2, g_Config.LabelTopRight, strlen(g_Config.LabelTopRight) );
@@ -1983,7 +2005,7 @@ HRESULT UpdateInputState( HWND hDlg )
 	if ( g_Config.LabelBottomRight[0] != 0 ) {
 		RECT r = { 0, 0, 0, 0 };
 		DrawText(hDC, g_Config.LabelBottomRight, strlen(g_Config.LabelBottomRight), &r, DT_CALCRECT);
-		int offset = r.right - x/2 + Border;
+		int offset = r.right - x/2 + BorderX;
 		if (offset<0) offset = 0;
 		SetTextAlign( hDC, TA_TOP | TA_LEFT );
 		TextOut( hDC, x+x-x/2 - offset,y+y-y/2, g_Config.LabelBottomRight, strlen(g_Config.LabelBottomRight) );
@@ -1991,7 +2013,7 @@ HRESULT UpdateInputState( HWND hDlg )
 	if ( g_Config.LabelBottomLeft[0] != 0 ) {
 		RECT r = { 0, 0, 0, 0 };
 		DrawText(hDC, g_Config.LabelBottomLeft, strlen(g_Config.LabelBottomLeft), &r, DT_CALCRECT);
-		int offset = r.right - x/2 + Border;
+		int offset = r.right - x/2 + BorderX;
 		if (offset<0) offset = 0;
 		SetTextAlign( hDC, TA_TOP | TA_RIGHT );
 		TextOut( hDC, x/2 + offset,y+y-y/2, g_Config.LabelBottomLeft, strlen(g_Config.LabelBottomLeft) );
@@ -2012,17 +2034,17 @@ HRESULT UpdateInputState( HWND hDlg )
 		//printf("grid: xsize, ysize = %i,%i, x,y = %i,%i\n", xsize, ysize, x,y);
 		for (int i = 0; i <= g_Config.GridCount; i++) {
 			//int xpos = Border + stepx*i, ypos = Border + stepy*i;
-			int xpos = Border + (xsize - 2*Border) * i / g_Config.GridCount;
-			int ypos = Border + (ysize - 2*Border) * i / g_Config.GridCount;
+			int xpos = BorderX + (xsize - 2*BorderX) * i / g_Config.GridCount;
+			int ypos = BorderY + (ysize - 2*BorderY) * i / g_Config.GridCount;
 			if (abs(xpos-x) == 1)
 				xpos = x;	// avoid rounding error putting this right next to the axis
 			if (abs(ypos-y) == 1)
 				ypos = y;
-			MoveToEx( hDC, Border, ypos, NULL );
-			LineTo(   hDC, xsize - Border, ypos);
+			MoveToEx( hDC, BorderX, ypos, NULL );
+			LineTo(   hDC, xsize - BorderX, ypos);
 			//printf("grid: %4i,%4i -> %4i,%4i    ", Border, ypos, xsize - Border, ypos);
-			MoveToEx( hDC, xpos, Border, NULL );
-			LineTo(   hDC, xpos, ysize - Border);
+			MoveToEx( hDC, xpos, BorderY, NULL );
+			LineTo(   hDC, xpos, ysize - BorderY);
 			//printf("grid: %4i,%4i -> %4i,%4i\n", xpos, Border, xpos, ysize - Border);
 		}
 	}
@@ -2033,17 +2055,17 @@ HRESULT UpdateInputState( HWND hDlg )
 		SetDCPenColor( hDC, RGB(0x0f,0x0f,0xff) );
 		static const int TickSize = 10;	// pixels
 		for (int i = 0; i <= g_Config.TickCount; i++) {
-			int xpos = Border + (xsize - 2*Border) * i / g_Config.TickCount;
-			int ypos = Border + (ysize - 2*Border) * i / g_Config.TickCount;
+			int xpos = BorderX + (xsize - 2*BorderX) * i / g_Config.TickCount;
+			int ypos = BorderY + (ysize - 2*BorderY) * i / g_Config.TickCount;
 			if (abs(xpos-x) == 1)
 				xpos = x;	// avoid rounding error putting this right next to the axis
 			if (abs(ypos-y) == 1)
 				ypos = y;
 			if (g_Config.OriginLowerLeft) {
-				MoveToEx( hDC, Border, ypos, NULL );
-				LineTo(   hDC, Border + TickSize, ypos);
-				MoveToEx( hDC, xpos, ysize - Border, NULL );
-				LineTo(   hDC, xpos, ysize - Border - TickSize);
+				MoveToEx( hDC, BorderX, ypos, NULL );
+				LineTo(   hDC, BorderX + TickSize, ypos);
+				MoveToEx( hDC, xpos, ysize - BorderY, NULL );
+				LineTo(   hDC, xpos, ysize - BorderY - TickSize);
 			} else {
 				if (!g_Config.SuppressY) {
 					MoveToEx( hDC, x - TickSize/2, ypos, NULL );
@@ -2061,31 +2083,44 @@ HRESULT UpdateInputState( HWND hDlg )
     SelectPen( hDC, GetStockPen(DC_PEN) );
 	SetDCPenColor( hDC, RGB(0x0f,0x0f,0xff) );
 	if (g_Config.DrawOctants) {
+		// Will use a big hypoteneuse to make sure lines are long enough,
+		// then clip the output to the edges of our drawing area.
+		HRGN newRegn = CreateRectRgn(BorderX, BorderY, xsize-BorderX, ysize-BorderY),
+			oldRegn = CreateRectRgn(0,0,0,0);
+		int wasClipped = GetClipRgn(hDC, oldRegn);
+		SelectClipRgn(hDC, newRegn);
+
 		for (int i = 0; i < 8; i++) {
 			float rads = (22.5f + (float)(45*i)) * deg2rad;
-			int x2 = (int)((float)x * cos(rads));
-			int y2 = (int)((float)y * sin(rads));
+			int x2 = (int)((float)xsize * cos(rads));
+			int y2 = (int)((float)ysize * sin(rads));
 			MoveToEx( hDC, x, y, NULL );
 			LineTo(   hDC, x+x2, y+y2 );
 		}
 
+		// Restore the clipping region to the old value
+		if (wasClipped) SelectClipRgn(hDC, oldRegn);
+		else SelectClipRgn(hDC, NULL);
+		if (oldRegn != NULL) DeleteObject(oldRegn);
+		if (newRegn != NULL) DeleteObject(newRegn);
+
 	} else if (g_Config.OriginLowerLeft) {
-		MoveToEx( hDC, Border, Border, NULL );
-		LineTo(   hDC, Border, ysize - Border );
-		//MoveToEx( hDC, Border, ysize - Border, NULL );
-		LineTo(   hDC, xsize - Border, ysize - Border );
+		MoveToEx( hDC, BorderX, BorderY, NULL );
+		LineTo(   hDC, BorderX, ysize - BorderY );
+		//MoveToEx( hDC, BorderX, ysize - BorderY, NULL );
+		LineTo(   hDC, xsize - BorderX, ysize - BorderY );
 
 	} else {	// Standard X,Y axes, centred on screen
 		if (!g_Config.SuppressY) {
-			MoveToEx( hDC, x, Border, NULL );
-			LineTo(   hDC, x, ysize - Border );
+			MoveToEx( hDC, x, BorderY, NULL );
+			LineTo(   hDC, x, ysize - BorderY );
 		} else {
 			MoveToEx( hDC, x, y-radius-3, NULL );				// make a teeny bit bigger than the 
 			LineTo(   hDC, x, y+radius+3);						// ellipse cursor.
 		}
 		if (!g_Config.SuppressX) {
-			MoveToEx( hDC, Border, y, NULL );
-			LineTo(   hDC, xsize - Border, y );
+			MoveToEx( hDC, BorderX, y, NULL );
+			LineTo(   hDC, xsize - BorderX, y );
 		} else {
 			MoveToEx( hDC, x-radius-2, y, NULL );
 			LineTo(   hDC, x+radius+2, y);
@@ -2094,16 +2129,16 @@ HRESULT UpdateInputState( HWND hDlg )
 
 	// Draw mark, making sure to adjust so we don't erase window edges
 	if (!g_Config.OriginLowerLeft) {
-		x += MulDiv( xsize - 2*Border, js.lX, 2 * g_Config.XYMinMax );
-		y += MulDiv( ysize - 2*Border, js.lY, 2 * g_Config.XYMinMax );
+		x += MulDiv( xsize - 2*BorderX, js.lX, 2 * g_Config.XYMinMax );
+		y += MulDiv( ysize - 2*BorderY, js.lY, 2 * g_Config.XYMinMax );
 	} else {
-		x = MulDiv( xsize - Border, js.lX, g_Config.XYMinMax );
-		y = MulDiv( ysize - Border, js.lY, g_Config.XYMinMax ) + ysize;
+		x = MulDiv( xsize - BorderX, js.lX, g_Config.XYMinMax );
+		y = MulDiv( ysize - BorderY, js.lY, g_Config.XYMinMax ) + ysize;
 	}
-	if (x >= xsize - Border) x = xsize - Border;
-	if (x < Border) x = Border;
-	if (y > ysize - Border ) y = ysize - Border;
-	if (y < Border) y = Border;
+	if (x >= xsize - BorderX) x = xsize - BorderX;
+	if (x < BorderX) x = BorderX;
+	if (y > ysize - BorderY ) y = ysize - BorderY;
+	if (y < BorderY) y = BorderY;
 	
 	// Save so we can erase on the next pass
 	oldx = x, oldy = y;
