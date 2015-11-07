@@ -1,9 +1,5 @@
 
---------------------------------------------------------------------
-This application has been modified to research Sensory Motor 
-Arousal Regulation Treatment (SMART) at the Trauma Center.
--------------------------------------------------------------------
-
+This application has been modified to research Sensory Motor Arousal Regulation Treatment (SMART) at the Trauma Center.
 
 Original Application developed by Giles Malet:
 
