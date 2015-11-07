@@ -1,8 +1,7 @@
 
 --------------------------------------------------------------------
 This application has been modified to research Sensory Motor 
-Arousal Regulation Treatment (SMART) at the Trauma Center at the 
-Justice Resource Institute.
+Arousal Regulation Treatment (SMART) at the Trauma Center.
 -------------------------------------------------------------------
 
 
